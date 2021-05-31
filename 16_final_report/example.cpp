@@ -103,12 +103,10 @@ static void my_sub_matmul(const float* A, const float* B, float* C, const int m,
   const int nr = 64;
   const int mr = 32;
 
-  float Bc[kc * nc];
-  float Ac[mc * kc], Cc[mc * nc];
-
-#pragma omp parallel for collapse(2) private(Bc) private(Ac) private(Cc)
+#pragma omp parallel for collapse(2)
   for (int jc = 0; jc < n; jc += nc) {
     for (int pc = 0; pc < k; pc += kc) {
+      float Bc[kc * nc];
       const int _kc = std::min(kc, k - pc);
       const int _nc = std::min(nc, n - jc);
 
@@ -126,6 +124,7 @@ static void my_sub_matmul(const float* A, const float* B, float* C, const int m,
       }
 
       for (int ic = 0; ic < m; ic += mc) {
+        float Ac[mc * kc], Cc[mc * nc];
         const int _mc = std::min(mc, m - ic);
         for (int i = 0; i < _mc; ++i) {
           int p = 0;
