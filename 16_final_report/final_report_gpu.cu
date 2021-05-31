@@ -14,7 +14,7 @@
 using namespace std;
 
 __global__ void matmul(float *A, float *B, float *C, int k) {
-  int m = gridDim.y;
+  // int m = gridDim.y;
   int n = blockDim.x * gridDim.x;
 
   int i = blockIdx.y;
@@ -33,7 +33,7 @@ __global__ void matmul(float *A, float *B, float *C, int k) {
 }
 
 void my_sub_matmul(float *A, float *B, float *C, const int m, const int n,
-             const int k, const int stride_C, const int offset_C) {
+    const int k, const int stride_C, const int offset_C) {
   float* A_gpu;
   float* B_gpu;
   float* C_gpu;
@@ -49,24 +49,24 @@ void my_sub_matmul(float *A, float *B, float *C, const int m, const int n,
   cudaMemcpy(A_gpu, A, m * k * sizeof(float), cudaMemcpyHostToDevice);
   cudaMemcpy(B_gpu, B, k * n * sizeof(float), cudaMemcpyHostToDevice);
   // cudaMemcpy(C_gpu, tmpC.get(), m * n * sizeof(float), cudaMemcpyHostToDevice);
-   cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
 
   //////////////////////////
-   int M = std::min(1024, n);
-   dim3 grid(n / M, m);
-   matmul<<<grid,M, M*sizeof(float)>>>(A_gpu, B_gpu, C_gpu, k);
-   cudaDeviceSynchronize();
+  int M = std::min(1024, n);
+  dim3 grid(n / M, m);
+  matmul<<<grid,M, M*sizeof(float)>>>(A_gpu, B_gpu, C_gpu, k);
+  cudaDeviceSynchronize();
   //////////////////////////
 
   cudaMemcpy(tmpC.get(), C_gpu, m * n * sizeof(float), cudaMemcpyDeviceToHost);
 
-   cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
 
   cudaFree(A_gpu);
   cudaFree(B_gpu);
   cudaFree(C_gpu);
 
-// #pragma omp parallel for collapse(2)
+#pragma omp parallel for collapse(2)
   for (int i = 0;i < m;++i) {
     for (int j = 0;j < n;++j) {
       C[i * stride_C + j + offset_C] = tmpC[i * n + j];
@@ -114,15 +114,15 @@ int main(int argc, char **argv) {
     auto tic = chrono::steady_clock::now();
     offset   = N / size * ((rank + irank) % size);
     my_sub_matmul(subA.data(), subB.get(), subC.data(), N / size, N / size, N,
-                  N, offset);
+        N, offset);
     const auto toc = chrono::steady_clock::now();
     comp_time += chrono::duration<double>(toc - tic).count();
     if (irank < size - 1) {
       MPI_Request request[2];
       MPI_Isend(subB.get(), N * N / size, MPI_FLOAT, send_to, 0, MPI_COMM_WORLD,
-                &request[0]);
+          &request[0]);
       MPI_Irecv(recv.get(), N * N / size, MPI_FLOAT, recv_from, 0,
-                MPI_COMM_WORLD, &request[1]);
+          MPI_COMM_WORLD, &request[1]);
       MPI_Waitall(2, request, MPI_STATUS_IGNORE);
       subB.swap(recv);
     }
@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
   }
   const auto tic = chrono::steady_clock::now();
   MPI_Allgather(&subC[0], N * N / size, MPI_FLOAT, &C[0], N * N / size,
-                MPI_FLOAT, MPI_COMM_WORLD);
+      MPI_FLOAT, MPI_COMM_WORLD);
   const auto toc = chrono::steady_clock::now();
   comm_time += chrono::duration<double>(toc - tic).count();
 
