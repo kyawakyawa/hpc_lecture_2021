@@ -200,15 +200,15 @@ int main(int argc, char** argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  const int N = 4000;
+  const int N = 4096;
 
   vector<float> A(N * N);
   vector<float> B(N * N);
   vector<float> C(N * N, 0);
   vector<float> subA(N * N / size);
-  unique_ptr<float[]> subB = std::make_unique<float[]>(N * N / size);
+  unique_ptr<float[]> subB(new float[N * N / size]);
   vector<float> subC(N * N / size, 0);
-  unique_ptr<float[]> recv = std::make_unique<float[]>(N * N / size);
+  unique_ptr<float[]> recv(new float[N * N / size]);
 
   if (rank == 0) {
     for (int i = 0; i < N; i++) {
@@ -257,15 +257,16 @@ int main(int argc, char** argv) {
   comm_time += chrono::duration<double>(toc - tic).count();
 
   // Checks error
-  if (rank == 0) {
 #pragma omp parallel for
     for (int i = 0; i < N; i++)
       for (int k = 0; k < N; k++)
         for (int j = 0; j < N; j++) C[N * i + j] -= A[N * i + k] * B[N * k + j];
     double err = 0;
+#pragma omp parallel for
     for (int i = 0; i < N; i++)
       for (int j = 0; j < N; j++) err += double(fabs(C[size_t(N * i + j)]));
 
+  if (rank == 0) {
     double time = comp_time + comm_time;
     printf("N    : %d\n", N);
     printf("comp : %lf s\n", comp_time);
